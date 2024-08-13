@@ -1,53 +1,111 @@
-
+#include <stdlib.h>
 #include <cstring>
-#include "render_context.h"
-#include "game_pad.h"
+#include <psxgpu.h>
+#include <psxgte.h>
+#include <inline_c.h>
+#include <hwregs_c.h>
+#include "fixed_math.h"
+#include "graphics.h"
+#include "controller.h"
+#include "cd_drive.h"
+#include "texture.h"
+#include "sound.h"
+#include "random.h"
+#include "debug_msg.h"
+#include "scene_manager.h"
+
+#include "quad.h"
+
+// links
+// https://psx.arthus.net/sdk/Psy-Q/DOCS/FileFormat47.pdf
+// https://psx.arthus.net/sdk/Psy-Q/DOCS/LibOver47.pdf
+// https://psx.arthus.net/sdk/Psy-Q/DOCS/LibRef47.pdf
+// https://github.com/ABelliqueux/nolibgs_hello_worlds
+// TODO
+// debuf_msg Variadic functions https://en.cppreference.com/w/cpp/utility/variadic
 
 static constexpr int SCREEN_XRES = 320;
 static constexpr int SCREEN_YRES = 240;
+// custom ot? [0] ui, [1] sprites, [2] projs?
+static constexpr size_t DEFAULT_OT_LENGTH = 3;
+static constexpr size_t DEFAULT_BUFFER_LENGTH = 32768;
 
-uint32_t frameCounter = 0;
 
-int main(int argc, const char **argv)
+int main(int argc, const char** argv)
 {
-	// Initialize the GPU and load the default font texture provided by PSn00bSDK at (960, 0) in VRAM.
-	ResetGraph(0);
-	FntLoad(960, 0);
-	RenderContext ctx;
-	ctx.Setup(SCREEN_XRES, SCREEN_YRES, 63, 0, 127);
+	// init systems
+	Graphics gfx(DEFAULT_OT_LENGTH, DEFAULT_BUFFER_LENGTH);
+	gfx.Setup(SCREEN_XRES, SCREEN_YRES, 58, 123, 176);
+	SoundPlayer soundPlayer; // init before cd-drive
+	CdDrive cd;
+	Controller controllers[2];
+    InitPAD(controllers[0].padBuffer, 34, controllers[1].padBuffer, 34);
+    StartPAD(); // start polling (TODO[SPI])
+    ChangeClearPAD(0);
+	InitGeom(); // todo: research these vv
+	gte_SetGeomOffset( SCREEN_XRES >> 1, SCREEN_YRES >> 1 );
+	gte_SetGeomScreen( SCREEN_XRES >> 1 );
+	uint16_t timer = TIMER_VALUE(0);
+	Random::Seed(timer);
+	DEBUG_MSG::Setup(&gfx, 5);
 
-	GamePad pad;
+	Scene* scene;
+	scene = new MainMenu();
+	scene->Setup(cd, gfx);
+	// scene changer atm
+	SceneManager::Setup(scene, &gfx, &cd);
 
-	uint32_t x = SCREEN_XRES >> 2, y = SCREEN_YRES >> 1;
+	auto* data = cd.LoadFile("\\AWESOME.TIM;1");
+	Texture* tex = new Texture;
+	gfx.UploadTexture(data, tex);
+	delete[] data;
 
-	while (true)
+	char str[50];
+	sprintf(str, "%d %d", tex->UVoffs[0], tex->UVoffs[1]);
+	DEBUG_MSG::CreateMsg(0, str);
+
+	QuadF qf(40,152-50,25,25,Color(255,0,0));
+	QuadFT qft(40,152,32,32,tex);
+	QuadG qg(40,50,32,32);
+	QuadGT qgt(100,152,32,32, tex);
+	qgt.SetUV(0, 0,0);
+	qgt.SetUV(1, 64,0);
+	qgt.SetUV(2, 0,64);
+	qgt.SetUV(3, 64,64);
+	qft.SetUV(0, 0,0);
+	qft.SetUV(1, 64,0);
+	qft.SetUV(2, 0,64);
+	qft.SetUV(3, 64,64);
+	qft.SetBrightness(80);
+	qg.SetColor(3, Color(255,255,255));
+	qgt.SetColor(3, Color(0,0,255));
+
+	while(true)
 	{
-		frameCounter++;
+		scene->Update(controllers);
+		scene->Draw(gfx);
 
-		if(pad.GetPad(0)->stat == 0)
+		qf.color.g = ++qf.color.g % 255;
+		qf.color.b = ++qf.color.b % 128;
+		qf.Rotate(5);
+		qft.Scale(1.001f);
+		qft.Rotate(-2);
+
+		qf.Draw(gfx,0);
+		qft.Draw(gfx,0);
+		qg.Draw(gfx,0);
+		qgt.Draw(gfx, 0);
+
+		sprintf(str, "%d", qgt.uv.Length());
+		DEBUG_MSG::CreateMsg(0, str);
+		DEBUG_MSG::ShowMessages();
+		// end frame
+		for (std::uint8_t i = 0; i < 2; i++)
 		{
-			if(!(pad.GetPad(0)->btn & PadButton::PAD_UP))
-				y -= 1;
-			if(!(pad.GetPad(0)->btn & PadButton::PAD_DOWN))
-				y += 1;
-			if(!(pad.GetPad(0)->btn & PadButton::PAD_LEFT))
-				x -= 1;
-			if(!(pad.GetPad(0)->btn & PadButton::PAD_RIGHT))
-				x += 1;
+			controllers[i].UpdateBuffer();
 		}
-		//printf("posX:%d", x);
-
-		auto tile = ctx.NewPrimitive<TILE>(1);
-		setTile(tile);
-		setXY0 (tile, x, y);
-		setWH  (tile, 64, 64);
-		setRGB0(tile, 255, 255, 0);
-		char str[50];
-		sprintf(str, "%s %d", "frames:", frameCounter);
-		ctx.DrawText(8, 16, 0, "Hello C++!");
-		ctx.DrawText(8, 32, 0, str);
-		ctx.Flip();
+		gfx.Flip();
 	}
-	
+
 	return 0;
 }

@@ -58,9 +58,16 @@
 			entire disc must contain 45 directories or less. Subdirectories can
 			contain any number of files.
 		-->
+		<!-- muista 8.3 file name !-->
 		<directory_tree>
 			<file name="SYSTEM.CNF"		type="data" source="${PROJECT_SOURCE_DIR}/system.cnf" />
 			<file name="TEMPLATE.EXE"	type="data" source="template.exe" />
+			<file name="awesome.tim"	type="data" source="${PROJECT_SOURCE_DIR}/textures/awesome.tim"/>
+			<file name="sprts.tim"		type="data" source="${PROJECT_SOURCE_DIR}/textures/sprts.tim"/>
+			<file name="projs.tim"		type="data" source="${PROJECT_SOURCE_DIR}/textures/projs.tim"/>
+			<file name="mmenu.tim"		type="data" source="${PROJECT_SOURCE_DIR}/textures/mmenu.tim"/>
+			<file name="ffwin.vag"		type="data" source="${PROJECT_SOURCE_DIR}/sounds/ffwin.vag"/>
+			<file name="proyt.vag"		type="data" source="${PROJECT_SOURCE_DIR}/sounds/proyt.vag"/>
 			<!--
 				This file is only required if you are using dynamic linking
 				(see the system/dynlink example). It contains the executable's

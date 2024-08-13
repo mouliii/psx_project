@@ -1,25 +1,40 @@
 #pragma once
 #include <psxgpu.h>
 #include <cstdint>
+#include <cstddef>
+
 
 class RenderBuffer
 {
 public:
-    RenderBuffer(size_t ot_length, size_t buffer_length);
-    ~RenderBuffer();
-    void Setup(int x, int y, int w, int h, int r, int g, int b);
-    uint8_t* BufferStart();
-    uint8_t* BufferEnd();
-    uint32_t* OTEntry(int z); // parempi nimi?
-    void ClearOT();
-    void Draw();
-    void Display();
+	RenderBuffer(std::size_t otLength, std::size_t bufferLength);
+	~RenderBuffer();
+	void Setup(int x, int y, int w, int h, int r, int g, int b);
+	inline uint8_t* BufferStart() const {
+		return buffer;
+	}
+	inline uint8_t* BufferEnd() const {
+		return &buffer[bufferLength];
+	}
+	inline uint32_t* OtEntry(int z) const {
+		return &ot[z];
+	}
+	inline void OtClear() {
+		ClearOTagR(ot, otLength);
+	}
+	inline void Draw() {
+		DrawOTagEnv(&ot[otLength - 1], &drawEnv);
+	}
+	inline void Display() {
+		PutDispEnv(&dispEnv);
+	}
+
 private:
-    DISPENV dispEnv;
-    DRAWENV drawEnv;
-    uint32_t* ot;
-    uint8_t* buffer;
-    size_t otLength;
-    size_t bufferLength;
-    // size_t == uint == int32?
+	DISPENV dispEnv;
+	DRAWENV drawEnv;
+
+	std::uint32_t* ot;
+	std::uint8_t* buffer;
+	std::size_t  otLength;
+	std::size_t bufferLength;
 };

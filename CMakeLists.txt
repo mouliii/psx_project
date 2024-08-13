@@ -14,6 +14,8 @@ project(
 file(GLOB files
 	"src/*.h"
 	"src/*.cpp"
+	"sre/game/*.h"
+	"sre/game/*.cpp"
 )
 
 psn00bsdk_add_executable(template GPREL ${files})
